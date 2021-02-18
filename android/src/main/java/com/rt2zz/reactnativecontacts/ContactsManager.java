@@ -922,11 +922,25 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 .withValue(StructuredName.SUFFIX, suffix);
         ops.add(op.build());
 
-        op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+        // The old method was to update Organization, but if it did not exist nothing happened
+        /*op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
                 .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + " = ?", new String[]{String.valueOf(recordID), Organization.CONTENT_ITEM_TYPE})
                 .withValue(Organization.COMPANY, company)
                 .withValue(Organization.TITLE, jobTitle)
                 .withValue(Organization.DEPARTMENT, department);
+        ops.add(op.build());*/
+
+        // New method: delete organization and insert a new one
+        op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+            .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + " = ?", new String[]{String.valueOf(recordID), Organization.CONTENT_ITEM_TYPE});
+        ops.add(op.build());
+
+        op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+            .withValue(ContactsContract.Data.RAW_CONTACT_ID, String.valueOf(rawContactId))
+            .withValue(ContactsContract.Data.MIMETYPE, Organization.CONTENT_ITEM_TYPE)
+            .withValue(Organization.COMPANY, company)
+            .withValue(Organization.TITLE, jobTitle)
+            .withValue(Organization.DEPARTMENT, department);
         ops.add(op.build());
 
         op.withYieldAllowed(true);
