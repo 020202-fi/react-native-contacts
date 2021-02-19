@@ -24,6 +24,7 @@ import android.provider.ContactsContract.CommonDataKinds.Note;
 import android.provider.ContactsContract.RawContacts;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+import android.util.Log;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Promise;
@@ -508,7 +509,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             promise.reject(e.toString());
         }
     }
-    
+
     /*
      * Edit contact in native app
      */
@@ -787,15 +788,15 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
         String givenName = contact.hasKey("givenName") ? contact.getString("givenName") : null;
         String middleName = contact.hasKey("middleName") ? contact.getString("middleName") : null;
         String familyName = contact.hasKey("familyName") ? contact.getString("familyName") : null;
-        String prefix = contact.hasKey("prefix") ? contact.getString("prefix") : null;
-        String suffix = contact.hasKey("suffix") ? contact.getString("suffix") : null;
+        //String prefix = contact.hasKey("prefix") ? contact.getString("prefix") : null;
+        //String suffix = contact.hasKey("suffix") ? contact.getString("suffix") : null;
         String company = contact.hasKey("company") ? contact.getString("company") : null;
-        String jobTitle = contact.hasKey("jobTitle") ? contact.getString("jobTitle") : null;
-        String department = contact.hasKey("department") ? contact.getString("department") : null;
-        String note = contact.hasKey("note") ? contact.getString("note") : null;
-        String thumbnailPath = contact.hasKey("thumbnailPath") ? contact.getString("thumbnailPath") : null;
+        //String jobTitle = contact.hasKey("jobTitle") ? contact.getString("jobTitle") : null;
+        //String department = contact.hasKey("department") ? contact.getString("department") : null;
+        //String note = contact.hasKey("note") ? contact.getString("note") : null;
+        //String thumbnailPath = contact.hasKey("thumbnailPath") ? contact.getString("thumbnailPath") : null;
 
-        ReadableArray phoneNumbers = contact.hasKey("phoneNumbers") ? contact.getArray("phoneNumbers") : null;
+        /*ReadableArray phoneNumbers = contact.hasKey("phoneNumbers") ? contact.getArray("phoneNumbers") : null;
         int numOfPhones = 0;
         String[] phones = null;
         Integer[] phonesTypes = null;
@@ -856,7 +857,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 emailsLabels[i] = label;
                 emailIds[i] = emailMap.hasKey("id") ? emailMap.getString("id") : null;
             }
-        }
+        }*/
 
         ReadableArray postalAddresses = contact.hasKey("postalAddresses") ? contact.getArray("postalAddresses") : null;
         int numOfPostalAddresses = 0;
@@ -891,7 +892,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             }
         }
 
-        ReadableArray imAddresses = contact.hasKey("imAddresses") ? contact.getArray("imAddresses") : null;
+        /*ReadableArray imAddresses = contact.hasKey("imAddresses") ? contact.getArray("imAddresses") : null;
         int numOfIMAddresses = 0;
         String[] imAccounts = null;
         String[] imProtocols = null;
@@ -908,19 +909,23 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 imProtocols[i] = imAddressMap.getString("service");
                 imAddressIds[i] = imAddressMap.hasKey("id") ? imAddressMap.getString("id") : null;
             }
-        }
+        }*/
 
         ArrayList<ContentProviderOperation> ops = new ArrayList<ContentProviderOperation>();
 
-        ContentProviderOperation.Builder op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
-                .withSelection(ContactsContract.Data.CONTACT_ID + "=?", new String[]{String.valueOf(recordID)})
-                .withValue(ContactsContract.Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
-                .withValue(StructuredName.GIVEN_NAME, givenName)
-                .withValue(StructuredName.MIDDLE_NAME, middleName)
-                .withValue(StructuredName.FAMILY_NAME, familyName)
-                .withValue(StructuredName.PREFIX, prefix)
-                .withValue(StructuredName.SUFFIX, suffix);
-        ops.add(op.build());
+        ContentProviderOperation.Builder op;
+
+        if (givenName != null || middleName != null || familyName != null) {
+            op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
+                    .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + "=?", new String[]{String.valueOf(recordID), ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE})
+                    .withValue(ContactsContract.Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
+                    .withValue(StructuredName.GIVEN_NAME, givenName)
+                    .withValue(StructuredName.MIDDLE_NAME, middleName)
+                    .withValue(StructuredName.FAMILY_NAME, familyName);
+                    //.withValue(StructuredName.PREFIX, prefix)
+                    //.withValue(StructuredName.SUFFIX, suffix);
+            ops.add(op.build());
+        }
 
         // The old method was to update Organization, but if it did not exist nothing happened
         /*op = ContentProviderOperation.newUpdate(ContactsContract.Data.CONTENT_URI)
@@ -931,22 +936,21 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
         ops.add(op.build());*/
 
         // New method: delete organization and insert a new one
-        op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
-            .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + " = ?", new String[]{String.valueOf(recordID), Organization.CONTENT_ITEM_TYPE});
-        ops.add(op.build());
+        if (company != null) {
+            op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                .withSelection(ContactsContract.Data.CONTACT_ID + "=? AND " + ContactsContract.Data.MIMETYPE + " = ?", new String[]{String.valueOf(recordID), Organization.CONTENT_ITEM_TYPE});
+            ops.add(op.build());
 
-        op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-            .withValue(ContactsContract.Data.RAW_CONTACT_ID, String.valueOf(rawContactId))
-            .withValue(ContactsContract.Data.MIMETYPE, Organization.CONTENT_ITEM_TYPE)
-            .withValue(Organization.COMPANY, company)
-            .withValue(Organization.TITLE, jobTitle)
-            .withValue(Organization.DEPARTMENT, department);
-        ops.add(op.build());
+            op = ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValue(ContactsContract.Data.RAW_CONTACT_ID, String.valueOf(rawContactId))
+                .withValue(ContactsContract.Data.MIMETYPE, Organization.CONTENT_ITEM_TYPE)
+                .withValue(Organization.COMPANY, company);
+                //.withValue(Organization.TITLE, jobTitle)
+                //.withValue(Organization.DEPARTMENT, department);
+            ops.add(op.build());
+        }
 
-        op.withYieldAllowed(true);
-
-
-        if (phoneNumbers != null) {
+        /*if (phoneNumbers != null) {
             // remove existing phoneNumbers first
             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
@@ -1028,7 +1032,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                         .withValue(ContactsContract.CommonDataKinds.Photo.PHOTO, toByteArray(photo))
                         .build());
             }
-        }
+        }*/
 
         if (postalAddresses != null){
             //remove existing addresses
@@ -1054,7 +1058,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             }
         }
 
-        if (imAddresses != null){
+        /*if (imAddresses != null){
             // remove existing IM addresses
             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
@@ -1074,7 +1078,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                         .withValue(CommonDataKinds.Im.CUSTOM_PROTOCOL, imProtocols[i]);
                 ops.add(op.build());
             }
-        }
+        }/*/
 
         Context ctx = getReactApplicationContext();
         try {
